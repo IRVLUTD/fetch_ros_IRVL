@@ -1,0 +1,22 @@
+<launch>
+  <!-- OpenRB-150 Ethernet Bridge Network Settings -->
+  <arg name="hand_ip" default="10.42.42.50" doc="IP address of OpenRB-150 Ethernet bridge" />
+  <arg name="hand_port" default="8888" doc="UDP port of OpenRB-150 Ethernet bridge" />
+  <arg name="current_limit" default="600" doc="Motor current limit in mA" />
+  <arg name="launch_moveit" default="true" doc="Launch MoveIt move_group configured for fetch_leap" />
+
+  <!-- 1. LEAP Hand Ethernet Driver & Action Server Bridge -->
+  <include file="$(find leap_ethernet)/launch/leap_hand_action_server.launch">
+    <arg name="ip" value="$(arg hand_ip)" />
+    <arg name="port" value="$(arg hand_port)" />
+    <arg name="current_limit" value="$(arg current_limit)" />
+    <arg name="publish_to_joint_states" value="true" />
+  </include>
+
+  <!-- 2. MoveIt Planning Pipeline (fetch_leap) -->
+  <group if="$(arg launch_moveit)">
+    <include file="$(find fetch_moveit_config)/launch/move_group.launch">
+      <arg name="robot" value="fetch_leap" />
+    </include>
+  </group>
+</launch>

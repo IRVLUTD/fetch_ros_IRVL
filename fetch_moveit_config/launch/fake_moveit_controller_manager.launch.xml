@@ -1,9 +1,12 @@
 <launch>
 
+  <arg name="robot" default="fetch_UMI" />
+
   <!-- Set the param that trajectory_execution_manager needs to find the controller plugin -->
   <param name="moveit_controller_manager" value="moveit_fake_controller_manager/MoveItFakeControllerManager"/>
 
   <!-- The rest of the params are specific to this plugin -->
-  <rosparam file="$(find fetch_moveit_config)/config/fake_controllers.yaml"/>
+  <rosparam unless="$(eval arg('robot') == 'fetch_leap')" file="$(find fetch_moveit_config)/config/fake_controllers.yaml"/>
+  <rosparam if="$(eval arg('robot') == 'fetch_leap')" file="$(find fetch_moveit_config)/config/fake_controllers_leap.yaml"/>
 
 </launch>

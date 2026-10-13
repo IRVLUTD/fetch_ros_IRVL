@@ -8,6 +8,8 @@
        doc="Path to the URDF file for original Fetch robot" />
   <arg name="urdf_file_UMI" default="$(find fetch_description)/robots/calibrated/calibrated_2024_12_09_20_00_06.urdf" 
        doc="Path to the URDF file for UMI Fingers Fetch" />
+  <arg name="urdf_file_leap" default="$(find fetch_description)/robots/fetch_leap.urdf" 
+       doc="Path to the URDF file for LEAP Hand Fetch" />
 
   <!-- Overwrite robot_description with the new URDF based on robot arg -->
   <group if="$(eval arg('robot') == 'fetch_original')">
@@ -16,10 +18,14 @@
   <group if="$(eval arg('robot') == 'fetch_UMI')">
     <param name="robot_description" textfile="$(arg urdf_file_UMI)" />
   </group>
+  <group if="$(eval arg('robot') == 'fetch_leap')">
+    <param name="robot_description" textfile="$(arg urdf_file_leap)" />
+  </group>
 
 
   <!-- Launch MoveIt! move_group -->
   <include file="$(find fetch_moveit_config)/launch/move_group.launch">
+    <arg name="robot" value="$(arg robot)" />
   </include>
 
 </launch>

@@ -1,22 +1,245 @@
 # fetch_ros_IRVL
 
+ROS 1 (Noetic) software stack for the **Fetch Mobile Manipulator** customized by the **Intelligent Robotics and Vision Lab (IRVL)** at the University of Texas at Dallas.
+
+This repository provides robot descriptions, MoveIt motion planning configurations, teleoperation nodes, and autonomous manipulation pipelines for the Fetch robot equipped with:
+- **16-DOF LEAP Dexterous Hand** (Ethernet / OpenRB-150 bridge)
+- **ATI-Gamma 6-Axis Force/Torque Sensor** (NetFT UDP stream)
+- **UMI Deformable Fingers** (parallel jaw alternate)
+
+---
+
+## Table of Contents
+
+- [System Architecture](#system-architecture)
+- [Repository Ecosystem](#repository-ecosystem)
+- [Environment & Prerequisites](#environment--prerequisites)
+- [Hardware Network Configuration](#hardware-network-configuration)
+- [Building the Workspace](#building-the-workspace)
+- [Running in Simulation (Gazebo)](#running-in-simulation-gazebo)
+- [Running on the Physical Robot](#running-on-the-physical-robot)
+- [PS4 Controller Teleoperation Guide](#ps4-controller-teleoperation-guide)
+- [Utility Scripts](#utility-scripts)
+- [Troubleshooting & Maintenance](#troubleshooting--maintenance)
+- [Previous IRVL Documentation (ATI FT & UMI Fingers)](#previous-irvl-documentation-ati-gamma-ft--umi-deformable-fingers)
+
+## Repository Ecosystem
+
+This workspace is modularized across three repositories:
+
+| Repository | Purpose | Location in Workspace |
+| :--- | :--- | :--- |
+| **`fetch_ros_IRVL`** *(this repo)* | URDF descriptions, MoveIt configuration, joystick teleoperation, demo and homing scripts. | `catkin_ws/src/fetch_ros_IRVL` |
+| **`leap_inhand`** | Hardware Ethernet driver node (`leap_ethernet`), action server bridge, and OpenRB-150 Arduino/Teensy firmware. | `catkin_ws/src/leap_ethernet` |
+| **`fetch_gazebo`** | Gazebo simulation worlds, Fetch + LEAP robot spawn files, and simulation controller configurations. | `catkin_ws/src/fetch_gazebo` |
+
+---
+
+## Environment & Prerequisites
+
+All packages are developed and validated on **Ubuntu 20.04** running **ROS Noetic** via Docker.
+
+### Docker Setup
+
+```bash
+# Start container with host networking and input device passthrough
+docker run -it --net=host \
+  --device=/dev/input \
+  -v /home/$USER/Projects:/root/Projects \
+  noetic-foxglove bash
+```
+
+To attach a second terminal to an already-running container:
+```bash
+docker exec -it <container_name_or_id> bash
+```
+
+---
+
+## Hardware Network Configuration
+
+The Fetch robot and peripheral devices communicate over the Fetch internal Ethernet subnet (`10.42.42.0/24`):
+
+| Device | Interface | IP Address | Port / Protocol |
+| :--- | :--- | :--- | :--- |
+| **Fetch Internal Computer** | Internal Ethernet | `10.42.42.1` | - |
+| **OpenRB-150 (LEAP Hand)** | Ethernet Bridge | `10.42.42.50` | `8888` (UDP) |
+| **ATI NetFT Sensor** | Ethernet Wrist F/T | `10.42.42.41` | UDP / RDT |
+
+### Network Verification
+Before running physical robot drivers, verify communication with the LEAP hand:
+```bash
+# 1. Ping the OpenRB-150 Ethernet board
+ping 10.42.42.50
+
+# 2. Test UDP reachability (Ctrl+C to exit)
+nc -u 10.42.42.50 8888
+```
+
+---
+
+## Building the Workspace
+
+Inside your ROS workspace (`catkin_ws`):
+
+```bash
+cd ~/Projects/catkin_ws
+
+# Symlink or clone packages into src/
+# Ensure fetch_ros_IRVL, fetch_gazebo, and leap_ethernet are present in src/
+
+# Build all packages
+catkin_make
+
+# Source environment
+source devel/setup.bash
+```
+
+> [!NOTE]
+> `fetch_ikfast_plugin` and `fetch_depth_layer` include `CATKIN_IGNORE` flags to bypass deprecated dependencies in ROS Noetic.
+
+---
+
+## Running in Simulation (Gazebo)
+
+### 1. Launch Gazebo Simulation
+Starts Gazebo with the Fetch robot mounted with the 16-DOF LEAP hand and loads the standard manipulation environment:
+```bash
+roslaunch fetch_gazebo simulation.launch robot:=fetch_leap
+```
+
+### 2. Launch MoveIt Motion Planning
+Starts the `move_group` node configured for `fetch_leap`:
+```bash
+roslaunch fetch_moveit_config move_group.launch robot:=fetch_leap
+```
+
+### 3. Run Script
+#### Option 1: Autonomous Pick and Place Demo
+Executes inverse kinematics, table scene collision generation, Cartesian approach, enveloping grasp, lift, place, and retreat:
+```bash
+python3 /root/Projects/fetch_ros_IRVL/scripts/leap_pick_place_demo.py
+```
+
+#### Option 2: Teleoperation
+Drive the simulated base, torso, head, and arm with a PS4 controller:
+```bash
+roslaunch fetch_teleop teleop.launch robot:=fetch_leap
+```
+
+---
+
+## Running on the Physical Robot
+
+### 1. Power and Hardware Preparation
+1. Ensure the Fetch robot is powered on and safety breakers are disengaged.
+2. Verify the OpenRB-150 Ethernet bridge on the LEAP hand has an active link light (`10.42.42.50`).
+3. Ensure the arm has clearance to move safely.
+
+### 2. Launch LEAP Hand Hardware Driver & MoveIt
+This starts the Ethernet UDP bridge to the physical hand, publishes `/joint_states`, and brings up the MoveIt planning pipeline:
+```bash
+roslaunch fetch_moveit_config fetch_leap_real.launch hand_ip:=10.42.42.50
+```
+
+### 3. Launch Joystick Teleoperation
+```bash
+roslaunch fetch_teleop teleop.launch joy_dev:=/dev/input/js0
+```
+
+### 4. Home the Robot (Straight Forward + Open Hand)
+Run the diagnostic homing script to position the arm straight forward and open the hand:
+```bash
+python3 /root/Projects/fetch_ros_IRVL/scripts/send_zero_arm.py
+```
+
+---
+
+## PS4 Controller Teleoperation Guide
+
+The teleoperation node `fetch_teleop/src/joystick_teleop.cpp` provides full control over the mobile base, torso, head, arm Cartesian velocity, and LEAP hand grasps.
+
+### Control Layout
+
+| Function | Controls | Requirement |
+| :--- | :--- | :--- |
+| **Base Drive** | Left Stick (Linear / Angular) | Hold **L1 (Deadman)** |
+| **Torso Up / Down** | D-Pad Up / D-Pad Down | Hold **L1 (Deadman)** |
+| **Head Pan / Tilt** | Right Stick | Hold **L1 (Deadman)** |
+| **Arm Translation (X / Y)** | Left Stick | Hold **L1 (Deadman)** + Hold **Square** |
+| **Arm Translation (Z)** | Right Stick (Vertical) | Hold **L1 (Deadman)** + Hold **Square** |
+| **Arm Rotation (Roll / Pitch)** | Left Stick | Hold **L1 (Deadman)** + Hold **Circle** |
+| **Arm Rotation (Yaw)** | Right Stick (Horizontal) | Hold **L1 (Deadman)** + Hold **Circle** |
+| **LEAP Hand: Enveloping Grasp** | Press **Triangle** | Hold **R1 (Hand Deadman)** |
+| **LEAP Hand: Open Hand** | Press **X** | Hold **R1 (Hand Deadman)** |
+
+> [!TIP]
+> **Smooth Hardware Interpolation:** The teleoperation node streams commands at 50 Hz along a 1.2-second smooth trajectory for both open and close actions. This eliminates motor current spikes and prevents Dynamixel overload faults on the physical hand.
+
+---
+
+## Utility Scripts
+
+- **`scripts/leap_pick_place_demo.py`**:
+  Full autonomous pick-and-place demonstration using MoveIt Cartesian trajectory generation, Gazebo object tracking, dynamic scene collision management, and 50 Hz interpolated hand closure.
+- **`scripts/send_zero_arm.py`**:
+  Safe homing script that commands all 7 arm joints to 0.0 (straight forward) and commands the LEAP hand to an open opposition posture. Compatible with both simulation and physical hardware.
+
+---
+
+## Troubleshooting & Maintenance
+
+### Motor Fault Detection & Recovery
+If any Dynamixel motor on the LEAP hand detects an error condition (such as communication timeout, overload, voltage spike, or hardware error), the driver enters a protected **HALTED** state to prevent motor burnout or gear stripping:
+
+```text
+[ERROR] Motor fault detected: <ERROR_TYPE> on motor <ID>. Hand movement halted to prevent damage.
+[WARN]  Hand is HALTED due to motor fault. Awaiting reboot via /leap_hand/reboot...
+```
+
+**Recovery Procedure:**
+1. Check the hand to ensure fingers are not physically caught or blocked.
+2. Trigger the reboot recovery service:
+   ```bash
+   rosservice call /leap_hand/reboot
+   ```
+   Or execute the recovery script from `leap_inhand`:
+   ```bash
+   python3 /root/Projects/leap_inhand/leap_ethernet/scripts/leap_ethernet_reboot.py
+   ```
+3. The OpenRB-150 board will reinitialize motor parameters and restore normal operation without needing a full node restart.
+
+### PS4 Controller Not Responding
+1. Verify device recognition:
+   ```bash
+   ls -la /dev/input/js*
+   ```
+2. Test joystick button and axis events directly:
+   ```bash
+   jstest /dev/input/js0
+   ```
+3. If using Docker, ensure the container was started with `--device=/dev/input` and appropriate permissions.
+
+---
+---
+
+# Previous IRVL Documentation (ATI-Gamma F/T & UMI Deformable Fingers)
+
+> [!NOTE]
+> The documentation below preserves the historical instructions for the Fetch robot configuration with the **ATI-Gamma Force/Torque Sensor**, calibration workflows, and **UMI Deformable Fingers**.
+
 ROS Components for Robots from Fetch Robotics used at the Intelligent Robotics and Vision Lab at the University of Texas at Dallas. Our Fetch Robot uses an ATI-Gamma F/T sensor at the wrist; in this forked repository you will find the updated components for our robot, such as the new .urdf, moveit configuration, and a ros package to interface with the sensor. 
 
-### Table of Contents
+### Table of Contents (Legacy)
 
-- [fetch\_ros\_IRVL](#fetch_ros_irvl)
-    - [Table of Contents](#table-of-contents)
-  - [New .Urdf](#new-urdf)
-    - [Moveit Configuration](#moveit-configuration)
-    - [Robot Calibration](#robot-calibration)
-      - [Notes](#notes)
-  - [fetch\_netft package](#fetch_netft-package)
-    - [Notes](#notes-1)
-  - [New Deformable Fingers](#new-deformable-fingers)
+- [New .Urdf](#new-urdf)
+  - [Moveit Configuration](#moveit-configuration-legacy)
+  - [Robot Calibration](#robot-calibration)
+    - [Notes](#notes)
+- [fetch\_netft package](#fetch_netft-package)
+  - [Notes](#notes-1)
+- [New Deformable Fingers](#new-deformable-fingers)
 - [fetch\_ros Original Readme.md](#fetch_ros-original-readmemd)
-  - [Documentation](#documentation)
-  - [ROS Buildfarm Development Branches](#ros-buildfarm-development-branches)
-  - [ROS Buildfarm Release](#ros-buildfarm-release)
 
 ## New .Urdf 
 
@@ -38,7 +261,7 @@ Check if the change took effect by running
 ```
 The output should be 'uncalibrated'.
 
-### Moveit Configuration
+### Moveit Configuration (Legacy)
 Since we have updated the .urdf file we also made modifications to the [fetch_moveit_config](/fetch_moveit_config/) package. First, we added the new 'ati_link' to the [fetch.srdf](/fetch_moveit_config/config/fetch.srdf) for the simplification of the MoveIt path planning. Second, we reduced the joint velocity limits in [joint_limits.yaml](/fetch_moveit_config/config/joint_limits.yaml) to more reasonable speeds.
 
 After the changes have been made, ensure they are loaded by restarting the roscore service. NOTE: The fetch_drivers will reset; place the fetch robot in a resting position! (arm tucked, torso down) before running the command.
@@ -123,7 +346,7 @@ fetch_calibration | EOL | :negative_squared_cross_mark: | [![Build Status](http:
 fetch_depth_layer | EOL | :negative_squared_cross_mark: | [![Build Status](http://build.ros.org/buildStatus/icon?job=Msrc_uB__fetch_depth_layer__ubuntu_bionic__source)](http://build.ros.org/job/Msrc_uB__fetch_depth_layer__ubuntu_bionic__source/) | [![Build Status](http://build.ros.org/buildStatus/icon?job=Mbin_uB64__fetch_depth_layer__ubuntu_bionic_amd64__binary)](http://build.ros.org/job/Mbin_uB64__fetch_depth_layer__ubuntu_bionic_amd64__binary/) |
 fetch_description | EOL | :negative_squared_cross_mark: | [![Build Status](http://build.ros.org/buildStatus/icon?job=Msrc_uB__fetch_description__ubuntu_bionic__source)](http://build.ros.org/job/Msrc_uB__fetch_description__ubuntu_bionic__source/) | [![Build Status](http://build.ros.org/buildStatus/icon?job=Mbin_uB64__fetch_description__ubuntu_bionic_amd64__binary)](http://build.ros.org/job/Mbin_uB64__fetch_description__ubuntu_bionic_amd64__binary/) |
 fetch_ikfast_plugin | EOL | :negative_squared_cross_mark: | [![Build Status](http://build.ros.org/buildStatus/icon?job=Msrc_uB__fetch_ikfast_plugin__ubuntu_bionic__source)](http://build.ros.org/job/Msrc_uB__fetch_ikfast_plugin__ubuntu_bionic__source/) | [![Build Status](http://build.ros.org/buildStatus/icon?job=Mbin_uB64__fetch_ikfast_plugin__ubuntu_bionic_amd64__binary)](http://build.ros.org/job/Mbin_uB64__fetch_ikfast_plugin__ubuntu_bionic_amd64__binary/) |
-fetch_maps | EOL | :negative_squared_cross_mark: | [![Build Status](http://build.ros.org/buildStatus/icon?job=Msrc_uB__fetch_maps__ubuntu_bionic__source)](http://build.ros.org/job/Msrc_uB__fetch_maps__ubuntu_bionic__source/) | [![Build Status](http://build.ros.org/buildStatus/icon?job=Mbin_uB64__fetch_maps__ubuntu_bionic_amd64__binary)](http://build.ros.org/job/Mbin_uB64__fetch_maps__ubuntu_bionic_amd64__binary/) | :negative_squared_cross_mark: | 
+fetch_maps | EOL | :negative_squared_cross_mark: | [![Build Status](http://build.ros.org/buildStatus/icon?job=Msrc_uB__fetch_maps__ubuntu_bionic__source)](http://build.ros.org/job/Msrc_uB__fetch_maps__ubuntu_bionic__source/) | [![Build Status](http://build.ros.org/buildStatus/icon?job=Mbin_uB64__fetch_maps__ubuntu_bionic__source)](http://build.ros.org/job/Mbin_uB64__fetch_maps__ubuntu_bionic__source/) | :negative_squared_cross_mark: | 
 fetch_moveit_config | EOL | :negative_squared_cross_mark: | [![Build Status](http://build.ros.org/buildStatus/icon?job=Msrc_uB__fetch_moveit_config__ubuntu_bionic__source)](http://build.ros.org/job/Msrc_uB__fetch_moveit_config__ubuntu_bionic__source/) | [![Build Status](http://build.ros.org/buildStatus/icon?job=Mbin_uB64__fetch_moveit_config__ubuntu_bionic_amd64__binary)](http://build.ros.org/job/Mbin_uB64__fetch_moveit_config__ubuntu_bionic_amd64__binary/) | 
 fetch_navigation | EOL | :negative_squared_cross_mark: | [![Build Status](http://build.ros.org/buildStatus/icon?job=Msrc_uB__fetch_navigation__ubuntu_bionic__source)](http://build.ros.org/job/Msrc_uB__fetch_navigation__ubuntu_bionic__source/) | [![Build Status](http://build.ros.org/buildStatus/icon?job=Mbin_uB64__fetch_navigation__ubuntu_bionic_amd64__binary)](http://build.ros.org/job/Mbin_uB64__fetch_navigation__ubuntu_bionic_amd64__binary/) |
 fetch_teleop | EOL | :negative_squared_cross_mark: | [![Build Status](http://build.ros.org/buildStatus/icon?job=Msrc_uB__fetch_teleop__ubuntu_bionic__source)](http://build.ros.org/job/Msrc_uB__fetch_teleop__ubuntu_bionic__source/) | [![Build Status](http://build.ros.org/buildStatus/icon?job=Mbin_uB64__fetch_teleop__ubuntu_bionic_amd64__binary)](http://build.ros.org/job/Mbin_uB64__fetch_teleop__ubuntu_bionic_amd64__binary/) |

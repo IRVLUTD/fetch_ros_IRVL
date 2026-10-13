@@ -1,6 +1,9 @@
 <launch>
 
-  <include file="$(find fetch_moveit_config)/launch/planning_context.launch" />
+  <arg name="robot" default="fetch_UMI" doc="Robot type to use" />
+  <include file="$(find fetch_moveit_config)/launch/planning_context.launch">
+    <arg name="robot" value="$(arg robot)" />
+  </include>
 
   <!-- GDB Debug Option -->
   <arg name="debug" default="false" />
@@ -33,6 +36,7 @@
     <arg name="moveit_manage_controllers" value="true" />
     <arg name="moveit_controller_manager" value="fetch" unless="$(arg fake_execution)"/>
     <arg name="moveit_controller_manager" value="fake" if="$(arg fake_execution)"/>
+    <arg name="robot" value="$(arg robot)" />
   </include>
 
   <!-- Sensors Functionality -->

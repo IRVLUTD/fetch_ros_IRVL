@@ -1,0 +1,26 @@
+<launch>
+  <arg name="robot" default="fetch_leap" />
+  <arg name="joy_dev" default="/dev/input/js0" />
+  <arg name="use_leap_hand" default="$(eval arg('robot') == 'fetch_leap')" />
+
+  <!-- 1. Joy driver node for PS4 / Joystick input -->
+  <node name="joy" pkg="joy" type="joy_node" respawn="true">
+    <param name="dev" value="$(arg joy_dev)" />
+    <param name="deadzone" value="0.15" />
+    <param name="autorepeat_rate" value="30.0" />
+    <param name="coalesce_interval" value="0.033" />
+  </node>
+
+  <!-- 2. Fetch Joystick Teleop node configured for LEAP hand -->
+  <node name="fetch_teleop" pkg="fetch_teleop" type="joystick_teleop" output="screen">
+    <rosparam file="$(find fetch_teleop)/config/ps4.yaml" command="load" />
+    <param name="robot" value="$(arg robot)" />
+    <param name="use_leap_hand" value="$(arg use_leap_hand)" />
+    <param name="use_mux" value="true" />
+  </node>
+
+  <!-- 3. Cmd Vel Mux matching baseline Fetch teleop -->
+  <node name="cmd_vel_mux" pkg="topic_tools" type="mux" args="base_controller/command /cmd_vel /teleop/cmd_vel">
+    <remap from="mux" to="cmd_vel_mux" />
+  </node>
+</launch>

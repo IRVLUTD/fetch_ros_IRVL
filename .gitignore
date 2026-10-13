@@ -1,1 +1,17 @@
+# Antigravity / IDE / Editors
 .qodo
+.vscode/
+.idea/
+*.swp
+*~
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+
+# ROS / Catkin build artifacts
+build/
+devel/
+.catkin_workspace

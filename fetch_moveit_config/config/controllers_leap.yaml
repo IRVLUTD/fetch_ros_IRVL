@@ -1,0 +1,66 @@
+controller_list:
+  - name: arm_controller
+    action_ns: follow_joint_trajectory
+    type: FollowJointTrajectory
+    default: true
+    joints:
+      - shoulder_pan_joint
+      - shoulder_lift_joint
+      - upperarm_roll_joint
+      - elbow_flex_joint
+      - forearm_roll_joint
+      - wrist_flex_joint
+      - wrist_roll_joint
+    path_tolerance:
+      shoulder_pan_joint: -1
+      shoulder_lift_joint: -1
+      upperarm_roll_joint: -1
+      elbow_flex_joint: -1
+      forearm_roll_joint: -1
+      wrist_flex_joint: -1
+      wrist_roll_joint: -1
+    goal_tolerance:
+      shoulder_pan_joint: -1
+      shoulder_lift_joint: -1
+      upperarm_roll_joint: -1
+      elbow_flex_joint: -1
+      forearm_roll_joint: -1
+      wrist_flex_joint: -1
+      wrist_roll_joint: -1
+    goal_time_tolerance: 10.0
+      
+  - name: arm_with_torso_controller
+    action_ns: follow_joint_trajectory
+    type: FollowJointTrajectory
+    joints:
+      - torso_lift_joint
+      - shoulder_pan_joint
+      - shoulder_lift_joint
+      - upperarm_roll_joint
+      - elbow_flex_joint
+      - forearm_roll_joint
+      - wrist_flex_joint
+      - wrist_roll_joint
+    goal_time_tolerance: 10.0
+
+  - name: leap_hand_controller
+    action_ns: follow_joint_trajectory
+    type: FollowJointTrajectory
+    default: true
+    joints:
+      - joint_0
+      - joint_1
+      - joint_2
+      - joint_3
+      - joint_4
+      - joint_5
+      - joint_6
+      - joint_7
+      - joint_8
+      - joint_9
+      - joint_10
+      - joint_11
+      - joint_12
+      - joint_13
+      - joint_14
+      - joint_15
