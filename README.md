@@ -165,16 +165,17 @@ The teleoperation node `fetch_teleop/src/joystick_teleop.cpp` provides full cont
 | :--- | :--- | :--- |
 | **Base Drive** | Left Stick (Linear / Angular) | Hold **L1 (Deadman)** |
 | **Torso Up / Down** | D-Pad Up / D-Pad Down | Hold **L1 (Deadman)** |
-| **Head Pan / Tilt** | Right Stick | Hold **L1 (Deadman)** |
-| **Arm Translation (X / Y)** | Left Stick | Hold **L1 (Deadman)** + Hold **Square** |
-| **Arm Translation (Z)** | Right Stick (Vertical) | Hold **L1 (Deadman)** + Hold **Square** |
-| **Arm Rotation (Roll / Pitch)** | Left Stick | Hold **L1 (Deadman)** + Hold **Circle** |
-| **Arm Rotation (Yaw)** | Right Stick (Horizontal) | Hold **L1 (Deadman)** + Hold **Circle** |
-| **LEAP Hand: Enveloping Grasp** | Press **Triangle** | Hold **R1 (Hand Deadman)** |
-| **LEAP Hand: Open Hand** | Press **X** | Hold **R1 (Hand Deadman)** |
+| **Head Pan / Tilt** | Left Stick (Pan: Horiz / Tilt: Vert) | Hold **SHARE (Button 8)** |
+| **Arm Translation (X / Y)** | Left Stick (X: Vert / Y: Horiz) | Hold **L1 (Deadman)** + Hold **OPTIONS** |
+| **Arm Translation (Z)** | Right Stick (Vertical) | Hold **L1 (Deadman)** + Hold **OPTIONS** |
+| **Arm Rotation (Roll / Pitch)** | Right Stick (Roll: Horiz / Pitch: Vert) | Hold **L1 (Deadman)** + Hold **R1** |
+| **Arm Rotation (Yaw)** | Left Stick (Horizontal) | Hold **L1 (Deadman)** + Hold **R1** |
+| **LEAP Hand: Enveloping Grasp** | Press **Square** | Hold **L1 (Deadman)** |
+| **LEAP Hand: Open Hand** | Press **Cross (X)** | Hold **L1 (Deadman)** |
 
 > [!TIP]
-> **Smooth Hardware Interpolation:** The teleoperation node streams commands at 50 Hz along a 1.2-second smooth trajectory for both open and close actions. This eliminates motor current spikes and prevents Dynamixel overload faults on the physical hand.
+> - **Head Control Override:** Holding **SHARE** automatically inhibits base driving so the robot remains stationary while panning and tilting the head camera with the Left Stick.
+> - **Smooth Hardware Interpolation:** The teleoperation node streams commands at 50 Hz along a 1.2-second smooth trajectory for both open and close actions. This eliminates motor current spikes and prevents Dynamixel overload faults on the physical hand.
 
 ---
 
