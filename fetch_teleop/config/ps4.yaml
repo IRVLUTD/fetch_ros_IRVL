@@ -31,8 +31,3 @@ gripper:
   button_open: 0           # Cross (X)
   button_close: 3          # Square ([])
 
-leap_hand:
-  button_deadman: 4        # L1
-  button_open: 0           # Cross (X)
-  button_close: 3          # Square ([])
-  action_name: leap_hand_controller/follow_joint_trajectory

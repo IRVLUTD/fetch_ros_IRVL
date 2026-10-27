@@ -163,19 +163,17 @@ The teleoperation node `fetch_teleop/src/joystick_teleop.cpp` provides full cont
 
 | Function | Controls | Requirement |
 | :--- | :--- | :--- |
-| **Base Drive** | Left Stick (Linear / Angular) | Hold **L1 (Deadman)** |
-| **Torso Up / Down** | D-Pad Up / D-Pad Down | Hold **L1 (Deadman)** |
-| **Head Pan / Tilt** | Left Stick (Pan: Horiz / Tilt: Vert) | Hold **SHARE (Button 8)** |
-| **Arm Translation (X / Y)** | Left Stick (X: Vert / Y: Horiz) | Hold **L1 (Deadman)** + Hold **OPTIONS** |
-| **Arm Translation (Z)** | Right Stick (Vertical) | Hold **L1 (Deadman)** + Hold **OPTIONS** |
-| **Arm Rotation (Roll / Pitch)** | Right Stick (Roll: Horiz / Pitch: Vert) | Hold **L1 (Deadman)** + Hold **R1** |
-| **Arm Rotation (Yaw)** | Left Stick (Horizontal) | Hold **L1 (Deadman)** + Hold **R1** |
-| **LEAP Hand: Enveloping Grasp** | Press **Square** | Hold **L1 (Deadman)** |
-| **LEAP Hand: Open Hand** | Press **Cross (X)** | Hold **L1 (Deadman)** |
+| **Base Drive** | Left Stick (Turn) / Right Stick (Forward/Back) | Hold **L1 (Deadman)** |
+| **Torso Up / Down** | Press **Triangle (Up)** / **Cross (Down)** | Hold **L1 (Deadman)** |
+| **Head Pan / Tilt** | Left Stick (Pan) / Right Stick (Tilt) | Hold **L2 (Head Deadman)** |
+| **Arm Translation (Linear)** | Joystick Inputs | Hold **L1 (Deadman)** + Hold **R2** |
+| **Arm Rotation (Angular)** | Joystick Inputs | Hold **L1 (Deadman)** + Hold **R1** |
+| **LEAP Hand / Gripper: Close** | Press **OPTIONS** | Hold **L1 (Deadman)** |
+| **LEAP Hand / Gripper: Open** | Press **SHARE** | Hold **L1 (Deadman)** |
 
 > [!TIP]
-> - **Head Control Override:** Holding **SHARE** automatically inhibits base driving so the robot remains stationary while panning and tilting the head camera with the Left Stick.
-> - **Smooth Hardware Interpolation:** The teleoperation node streams commands at 50 Hz along a 1.2-second smooth trajectory for both open and close actions. This eliminates motor current spikes and prevents Dynamixel overload faults on the physical hand.
+> - **Official Fetch joy_remap:** `fetch_teleop/launch/teleop.launch` uses the official Fetch `joy_remap.py` with `/opt/ros/noetic/share/joy/config/ps4joy.yaml` to ensure the controller controls are 100% identical between the physical Fetch robot and this simulation/development workspace.
+> - **Smooth Gripper Motion:** The `leap_gripper_action_server` automatically executes the hand open/close grasp over a safe 1.5-second trajectory, avoiding sudden current spikes.
 
 ---
 

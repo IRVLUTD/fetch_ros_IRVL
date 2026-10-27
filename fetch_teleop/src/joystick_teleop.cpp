@@ -260,7 +260,6 @@ public:
     pnh.param("button_deadman", deadman_, 10);
     pnh.param("button_increase", inc_button_, 12);
     pnh.param("button_decrease", dec_button_, 14);
-    pnh.param("axis_inc_dec", axis_inc_dec_, 7);
 
     // Joint Limits
     pnh.param("min_position", min_position_, 0.0);
@@ -304,17 +303,12 @@ public:
       return false;
     }
 
-    bool inc = (inc_button_ >= 0 && inc_button_ < static_cast<int>(joy->buttons.size()) && joy->buttons[inc_button_]) ||
-               (axis_inc_dec_ >= 0 && axis_inc_dec_ < static_cast<int>(joy->axes.size()) && joy->axes[axis_inc_dec_] > 0.5);
-    bool dec = (dec_button_ >= 0 && dec_button_ < static_cast<int>(joy->buttons.size()) && joy->buttons[dec_button_]) ||
-               (axis_inc_dec_ >= 0 && axis_inc_dec_ < static_cast<int>(joy->axes.size()) && joy->axes[axis_inc_dec_] < -0.5);
-
-    if (inc)
+    if (joy->buttons[inc_button_])
     {
       desired_velocity_ = max_velocity_;
       start();
     }
-    else if (dec)
+    else if (joy->buttons[dec_button_])
     {
       desired_velocity_ = -max_velocity_;
       start();
@@ -363,7 +357,7 @@ public:
   }
 
 private:
-  int deadman_, inc_button_, dec_button_, axis_inc_dec_;
+  int deadman_, inc_button_, dec_button_;
   double min_position_, max_position_, max_velocity_, max_acceleration_;
   bool inhibit_;
   std::string joint_name_;
@@ -445,156 +439,6 @@ private:
   int deadman_, open_button_, close_button_;
   double min_position_, max_position_, max_effort_;
   bool req_close_, req_open_;
-  boost::shared_ptr<client_t> client_;
-};
-
-
-// LEAP Hand Teleop (16 DOF)
-class LeapHandTeleop : public TeleopComponent
-{
-  typedef actionlib::SimpleActionClient<control_msgs::FollowJointTrajectoryAction> client_t;
-
-public:
-  LeapHandTeleop(const std::string& name, ros::NodeHandle& nh) :
-    req_close_(false),
-    req_open_(false)
-  {
-    ros::NodeHandle pnh(nh, name);
-
-    // Button mapping
-    pnh.param("button_deadman", deadman_, 10);
-    pnh.param("button_open", open_button_, 0);
-    pnh.param("button_close", close_button_, 3);
-
-    std::string action_name;
-    pnh.param("action_name", action_name, std::string("leap_hand_controller/follow_joint_trajectory"));
-    client_.reset(new client_t(action_name, true));
-    if (!client_->waitForServer(ros::Duration(2.0)))
-    {
-      ROS_WARN("%s may not be connected.", action_name.c_str());
-    }
-
-    // Direct cmd topic publisher for hardware/mirroring
-    cmd_pub_ = nh.advertise<sensor_msgs::JointState>("/leap_hand/cmd", 1);
-
-    for (int i = 0; i < 16; ++i)
-    {
-      joint_names_.push_back("joint_" + std::to_string(i));
-    }
-
-    // Default open posture: all fingers open, thumb opposition open to 1.5 rad
-    open_positions_.resize(16, 0.0);
-    open_positions_[13] = 1.5;
-
-    // Default close posture: Isaac Sim verified enveloping grasp
-    close_positions_.resize(16, 0.0);
-    close_positions_[0] = 0.0000;
-    close_positions_[1] = 0.5969;
-    close_positions_[2] = 0.8383;
-    close_positions_[3] = 0.7487;
-    close_positions_[4] = 0.0000;
-    close_positions_[5] = 0.5358;
-    close_positions_[6] = 0.8383;
-    close_positions_[7] = 0.7487;
-    close_positions_[8] = -0.1309;
-    close_positions_[9] = 1.1407;
-    close_positions_[10] = 1.3327;
-    close_positions_[11] = 1.2933;
-    close_positions_[12] = 1.2217;
-    close_positions_[13] = 0.6907;
-    close_positions_[14] = 0.9220;
-    close_positions_[15] = 0.8447;
-
-    current_cmd_positions_.resize(16, 0.0);
-    start_cmd_positions_.resize(16, 0.0);
-    target_cmd_positions_.resize(16, 0.0);
-    transitioning_ = false;
-    transition_duration_ = 1.2;
-  }
-
-  virtual bool update(const sensor_msgs::Joy::ConstPtr& joy,
-                      const sensor_msgs::JointState::ConstPtr& state)
-  {
-    bool deadman_pressed = joy->buttons[deadman_];
-
-    if (deadman_pressed)
-    {
-      if (joy->buttons[open_button_])
-        req_open_ = true;
-      else if (joy->buttons[close_button_])
-        req_close_ = true;
-    }
-
-    return false;
-  }
-
-  virtual void publish(const ros::Duration& dt)
-  {
-    if (req_open_)
-    {
-      startTransition(open_positions_);
-      req_open_ = false;
-    }
-    else if (req_close_)
-    {
-      startTransition(close_positions_);
-      req_close_ = false;
-    }
-
-    if (transitioning_)
-    {
-      double elapsed = (ros::Time::now() - start_transition_time_).toSec();
-      double alpha = std::min(1.0, elapsed / transition_duration_);
-      for (int i = 0; i < 16; ++i)
-      {
-        current_cmd_positions_[i] = start_cmd_positions_[i] + alpha * (target_cmd_positions_[i] - start_cmd_positions_[i]);
-      }
-
-      sensor_msgs::JointState cmd;
-      cmd.header.stamp = ros::Time::now();
-      cmd.name = joint_names_;
-      cmd.position = current_cmd_positions_;
-      cmd_pub_.publish(cmd);
-
-      if (alpha >= 1.0)
-      {
-        transitioning_ = false;
-      }
-    }
-  }
-
-private:
-  void startTransition(const std::vector<double>& target)
-  {
-    // 1. Send FollowJointTrajectory action goal (for Gazebo sim or action bridge)
-    control_msgs::FollowJointTrajectoryGoal goal;
-    goal.trajectory.joint_names = joint_names_;
-    trajectory_msgs::JointTrajectoryPoint pt;
-    pt.positions = target;
-    pt.velocities.resize(16, 0.0);
-    pt.time_from_start = ros::Duration(transition_duration_);
-    goal.trajectory.points.push_back(pt);
-    client_->sendGoal(goal);
-
-    // 2. Set up smooth interpolation for physical hand
-    start_cmd_positions_ = current_cmd_positions_;
-    target_cmd_positions_ = target;
-    start_transition_time_ = ros::Time::now();
-    transitioning_ = true;
-  }
-
-  int deadman_, open_button_, close_button_;
-  bool req_close_, req_open_;
-  std::vector<std::string> joint_names_;
-  std::vector<double> open_positions_;
-  std::vector<double> close_positions_;
-  std::vector<double> current_cmd_positions_;
-  std::vector<double> start_cmd_positions_;
-  std::vector<double> target_cmd_positions_;
-  bool transitioning_;
-  double transition_duration_;
-  ros::Time start_transition_time_;
-  ros::Publisher cmd_pub_;
   boost::shared_ptr<client_t> client_;
 };
 
@@ -756,7 +600,6 @@ public:
     pnh.param("max_acc_yaw", max_acc_yaw_, 10.0);
 
     cmd_pub_ = nh.advertise<geometry_msgs::TwistStamped>("/arm_controller/cartesian_twist/command", 10);
-    active_ = true;
   }
 
   virtual bool update(const sensor_msgs::Joy::ConstPtr& joy,
@@ -766,7 +609,16 @@ public:
     bool button_linear_pressed = joy->buttons[button_linear_];
     bool button_angular_pressed = joy->buttons[button_angular_];
 
-    if (deadman_pressed && button_linear_pressed)
+    if ((!(button_linear_pressed || button_angular_pressed) || !deadman_pressed) &&
+        (ros::Time::now() - last_update_ > ros::Duration(0.5)))
+    {
+      stop();
+      return false;
+    }
+
+    start();
+
+    if (button_linear_pressed)
     {
       desired_.twist.linear.x = joy->axes[axis_x_] * max_vel_x_;
       desired_.twist.linear.y = joy->axes[axis_y_] * max_vel_y_;
@@ -774,9 +626,9 @@ public:
       desired_.twist.angular.x = 0.0;
       desired_.twist.angular.y = 0.0;
       desired_.twist.angular.z = 0.0;
-      return true;
+      last_update_ = ros::Time::now();
     }
-    else if (deadman_pressed && button_angular_pressed)
+    else if (button_angular_pressed)
     {
       desired_.twist.linear.x = 0.0;
       desired_.twist.linear.y = 0.0;
@@ -784,7 +636,7 @@ public:
       desired_.twist.angular.x = joy->axes[axis_roll_] * max_vel_roll_;
       desired_.twist.angular.y = joy->axes[axis_pitch_] * max_vel_pitch_;
       desired_.twist.angular.z = joy->axes[axis_yaw_] * max_vel_yaw_;
-      return true;
+      last_update_ = ros::Time::now();
     }
     else
     {
@@ -794,8 +646,9 @@ public:
       desired_.twist.angular.x = 0.0;
       desired_.twist.angular.y = 0.0;
       desired_.twist.angular.z = 0.0;
-      return false;
     }
+
+    return true;
   }
 
   virtual void publish(const ros::Duration& dt)
@@ -811,7 +664,6 @@ public:
       last_.twist.angular.y = integrate(desired_.twist.angular.y, last_.twist.angular.y, max_acc_pitch_, dt.toSec());
       last_.twist.angular.z = integrate(desired_.twist.angular.z, last_.twist.angular.z, max_acc_yaw_, dt.toSec());
 
-      last_.header.stamp = ros::Time::now();
       last_.header.frame_id = "base_link";
 
       cmd_pub_.publish(last_);
@@ -824,10 +676,18 @@ public:
     return active_;
   }
 
+
   virtual bool stop()
   {
-    desired_ = geometry_msgs::TwistStamped();
-    return true;
+    // Publish stop message
+    if (active_)
+    {
+      last_ = desired_ = geometry_msgs::TwistStamped();
+      cmd_pub_.publish(last_);
+    }
+
+    active_ = false;
+    return active_;
   }
 
 private:
@@ -862,7 +722,6 @@ public:
     bool is_fetch;
     bool use_torso;
     bool use_gripper;
-    bool use_leap_hand;
     bool use_head;
     bool use_arm;
     bool use_base;
@@ -872,10 +731,6 @@ public:
     nh.param("use_head", use_head, true);
     nh.param("use_arm", use_arm, true);
     nh.param("use_base", use_base, true);
-
-    std::string robot_name;
-    nh.param("robot", robot_name, std::string(""));
-    nh.param("use_leap_hand", use_leap_hand, (robot_name == "fetch_leap"));
 
     // TODO: load these from YAML
 
@@ -889,13 +744,7 @@ public:
         components_.push_back(c);
       }
 
-      if (use_leap_hand)
-      {
-        // LEAP Hand does not override
-        c.reset(new LeapHandTeleop("leap_hand", nh));
-        components_.push_back(c);
-      }
-      else if (use_gripper)
+      if (use_gripper)
       {
         // Gripper does not override
         c.reset(new GripperTeleop("gripper", nh));

@@ -1,0 +1,62 @@
+<?xml version="1.0" ?>
+<sdf version="1.5">
+  <model name="apriltag_cube">
+    <static>false</static>
+    <link name="link">
+      <inertial>
+        <mass>0.08</mass>
+        <inertia>
+          <ixx>0.0000653</ixx>
+          <ixy>0.0</ixy>
+          <ixz>0.0</ixz>
+          <iyy>0.0000653</iyy>
+          <iyz>0.0</iyz>
+          <izz>0.0000653</izz>
+        </inertia>
+      </inertial>
+      
+      <collision name="collision">
+        <geometry>
+          <box>
+            <size>0.07 0.07 0.07</size>
+          </box>
+        </geometry>
+        <surface>
+          <friction>
+            <ode>
+              <mu>1.2</mu>
+              <mu2>1.2</mu2>
+              <fdir1>0 0 0</fdir1>
+              <slip1>0.0</slip1>
+              <slip2>0.0</slip2>
+            </ode>
+          </friction>
+          <contact>
+            <ode>
+              <kp>100000.0</kp>
+              <kd>10.0</kd>
+              <max_vel>0.1</max_vel>
+              <min_depth>0.001</min_depth>
+            </ode>
+          </contact>
+        </surface>
+      </collision>
+
+      <visual name="visual">
+        <geometry>
+          <mesh>
+            <uri>model://apriltag_cube/meshes/model.obj</uri>
+          </mesh>
+        </geometry>
+      </visual>
+
+      <velocity_decay>
+        <linear>0.001</linear>
+        <angular>0.001</angular>
+      </velocity_decay>
+      <self_collide>false</self_collide>
+      <kinematic>false</kinematic>
+      <gravity>true</gravity>
+    </link>
+  </model>
+</sdf>
