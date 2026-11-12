@@ -6,9 +6,9 @@
   <!-- URDF argument (plain URDF, no xacro) -->
   <arg name="urdf_file_fetch" default="$(find fetch_description)/robots/calibrated/calibrated_2024_12_09_20_00_06_original_fingers.urdf" 
        doc="Path to the URDF file for original Fetch robot" />
-  <arg name="urdf_file_UMI" default="$(find fetch_description)/robots/calibrated/calibrated_2024_12_09_20_00_06.urdf" 
+  <arg name="urdf_file_UMI" default="$(find fetch_description)/robots/calibrated/calibrated_2024_12_09_20_00_06_ati_sensor.urdf"
        doc="Path to the URDF file for UMI Fingers Fetch" />
-  <arg name="urdf_file_leap" default="$(find fetch_description)/robots/fetch_leap.urdf" 
+  <arg name="urdf_file_leap" default="$(find fetch_description)/robots/calibrated/calibrated_2024_12_09_20_00_06.urdf"
        doc="Path to the URDF file for LEAP Hand Fetch" />
 
   <!-- Overwrite robot_description with the new URDF based on robot arg -->

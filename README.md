@@ -242,23 +242,15 @@ ROS Components for Robots from Fetch Robotics used at the Intelligent Robotics a
 
 ## New .Urdf 
 
-As mentioned before, our Fetch robot is equipped with an ATI-Gamma force and torque sensor at the wrist. Consequently, the original .urdf can no longer be used for the proper control of the robot. We created a new .urdf [fetch.urdf](/fetch_description/robots/fetch.urdf) to replace the original at the fetch_description base ros package located within the '/opt/ros/' directory. 
+Historically, this robot's ATI-Gamma wrist sensor required a modified Fetch URDF. That nominal UMI-finger model is now preserved as [fetch_ati_sensor.urdf](fetch_description/robots/fetch_ati_sensor.urdf).
+
+**The current `fetch.urdf` describes the LEAP hand for general model use and lacks the `gripper_link` required by Fetch's gravity-compensation controller. Do not install it as the hardware startup model.** Use the calibrated LEAP model and the [current model selection and manual installation instructions](fetch_description/robots/README.md) instead. On this robot, the startup URDF is under `/etc/ros/melodic`, not `/opt/ros`.
 
 <p align="center">
 <img src="./media/robot.jpeg"  height="500" alt="IRVL Fetch Robot">
 </p>
 
-Replacing the original .urdf file will make the robot boot with the new robot representation which will respect the new joint limits when using teleoperation. In the case that the robot has been calibrated the change will only take effect if the calibration is reseted to it's factory model. You can do this by running:
-
-```Shell
-    calibrate_robot --reset
-```
-
-Check if the change took effect by running 
-```Shell
-    calibrate_robot --date
-```
-The output should be 'uncalibrated'.
+Keep the existing calibration when installing the updated calibrated model; resetting calibration is not part of the current manual copy procedure.
 
 ### Moveit Configuration (Legacy)
 Since we have updated the .urdf file we also made modifications to the [fetch_moveit_config](/fetch_moveit_config/) package. First, we added the new 'ati_link' to the [fetch.srdf](/fetch_moveit_config/config/fetch.srdf) for the simplification of the MoveIt path planning. Second, we reduced the joint velocity limits in [joint_limits.yaml](/fetch_moveit_config/config/joint_limits.yaml) to more reasonable speeds.
